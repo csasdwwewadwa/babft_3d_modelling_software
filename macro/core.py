@@ -16,11 +16,25 @@ class Vector3:
 
     # ---- basic access ----
     @property
-    def x(self): return self._v[0]
+    def x(self) -> float: return self._v[0]
     @property
-    def y(self): return self._v[1]
+    def y(self) -> float: return self._v[1]
     @property
-    def z(self): return self._v[2]
+    def z(self) -> float: return self._v[2]
+
+
+    @x.setter
+    def x(self, value):
+        self._v[0] = float(value)
+
+    @y.setter
+    def y(self, value):
+        self._v[1] = float(value)
+
+    @z.setter
+    def z(self, value):
+        self._v[2] = float(value)
+
 
     def as_array(self):
         return self._v
@@ -34,6 +48,14 @@ class Vector3:
 
     def __mul__(self, scalar):
         return Vector3(self._v * scalar)
+    
+    def __truediv__(self, scalar):
+        if scalar == 0:
+            raise ZeroDivisionError("division by zero")
+        return Vector3(self._v / scalar)
+    
+    def __rtruediv__(self, other):
+        raise NotImplementedError
 
     __rmul__ = __mul__
 
@@ -49,7 +71,7 @@ class Vector3:
     def normalized(self):
         n = self.norm()
         if n == 0:
-            raise ZeroDivisionError("Cannot normalize zero vector")
+            raise ZeroDivisionError("cannot normalize zero vector")
         return Vector3(self._v / n)
 
     # ---- rotation (SciPy-native) ----
@@ -62,58 +84,26 @@ class Vector3:
 
     def __repr__(self):
         return f"Vector3({self.x:.4f}, {self.y:.4f}, {self.z:.4f})"
-
-class Camera:
-
-    #    _______   ______
-    #   |       | [_____/
-    #   |       |]=V*‾‾‾
-    #   |_______|    ^
-    #       ^        | Camera focal point
-    #       | <---->
-    #       |offset_z
-    #       |
-    #     origin
     
 
+def look_at(from_pos, to_pos, up=Vector3(0, 1, 0)):
+    f = np.asarray(to_pos) - np.asarray(from_pos)
+    f = f / np.linalg.norm(f)
 
-    #        |\
-    #        | \
-    #        |__\     <-- measurement
-    #     ^  |5.2\
-    #     |  |    \
-    # 100 |  |     \
-    #     |  |      \
-    #     v  |_______\     <-- measurement
-    #        |  70.8  \
-    #        |         \
-    #        |          \
-    #        |           \
-    #        |            \
-    #        |             \
-    #        |______________\     <-- screen pixel
-    #              506
+    u = np.asarray(up)
+    u = u / np.linalg.norm(u)
 
+    # right vector
+    r = np.cross(u, f)
+    r_norm = np.linalg.norm(r)
+    if r_norm == 0:
+        raise ValueError("up vector is parallel to view direction")
+    r /= r_norm
 
-    def __init__(self, pos:Vector3, rot:Rotation, hotkey:str=None):
-        self.pos = pos
-        self.rot = rot
-        self.rot_inv = rot.inv()
+    # recompute orthonormal up
+    u = np.cross(f, r)
 
-        self.hotkey = hotkey
+    # rotation matrix (columns = basis vectors)
+    R = np.stack([r, u, f], axis=1)
 
-        self.offset_z = 126/41   #  ~3.07    |  111 - (100/(1-5.2/70.8))
-        self.screen_z = 31625/41 #  ~771.34  |  506/70.8 * (100/(1-5.2/70.8))
-    
-    def _local_to_screen(self, local_pos:Vector3) -> Vector3:
-        screen_pos = local_pos / (local_pos.z*self.screen_z)
-        return screen_pos
-
-    def _world_to_local(self, pos:Vector3) -> Vector3:
-        local_pos = self.rot_inv.apply(pos) - self.offset_z
-        return local_pos
-    
-    def to_screen(self, pos:Vector3):
-        local_pos = self._world_to_local(pos)
-        screen_pos = self._local_to_screen(local_pos)
-        return (screen_pos.x, screen_pos.y)
+    return Rotation.from_matrix(R)
