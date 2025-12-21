@@ -1,1 +1,1 @@
-from .main import *
+from .main import Vector2, Vector3, Workspace
