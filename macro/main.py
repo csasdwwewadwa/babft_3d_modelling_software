@@ -5,7 +5,6 @@ ahk.set_coord_mode('Mouse', "Screen")
 
 import time
 import math
-import enum
 import keyboard
 import random
 
