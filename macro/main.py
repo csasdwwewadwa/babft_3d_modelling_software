@@ -238,20 +238,23 @@ class Workspace:
             return (pos - current_block_position).rotate(rotation.inv())
         def _to_global(pos:Vector3) -> Vector3:
             return pos.rotate(rotation) + current_block_position
+        local_target_position = _to_local(position)
+        
+
         # front knobs are to be scaled first, then to back knobs.
         # scale front knobs
-        local_target_position = _to_local(position)
+        #region
         for axis_i in range(3):
             local_knobs_position = [Vector3.zero() for _ in range(6)]
             for i in range(3):
                 # first 3 indices: front knobs
-                local_knobs_position[i][i] = math.copysign(current_block_scale[i]+2, local_target_position[i])
+                local_knobs_position[i][i] = math.copysign(current_block_scale[i]/2+2, local_target_position[i])
                 # last 3 indices: back knobs (index i+3 are opposite knobs)
-                local_knobs_position[i+3][i] = -math.copysign(current_block_scale[i]+2, local_target_position[i])
+                local_knobs_position[i+3][i] = -math.copysign(current_block_scale[i]/2+2, local_target_position[i])
             global_knobs_position = [_to_global(v) for v in local_knobs_position]
             
             # calc stuf
-            scale_amount = abs(local_target_position[axis_i]) - current_block_scale[axis_i]/2 + scale[axis_i]/2
+            scale_amount = round(abs(local_target_position[axis_i]) - current_block_scale[axis_i]/2 + scale[axis_i]/2, 2)
             scale_offset_vector = Vector3.zero()
             scale_offset_vector[axis_i] = math.copysign(scale_amount, local_target_position[axis_i])
 
@@ -265,6 +268,89 @@ class Workspace:
                     continue
                 screen_knobs_position = [camera.to_screen(global_knobs_position[i]) for i in range(6)]
                 d = min((screen_knobs_position[i] - screen_knobs_position[axis_i]).length_sq() for i in _temp if i != axis_i)
+                if d > best_distance_sq:
+                    best_distance_sq = d
+                    best_from_camera = camera
+            # drag from
+            screen_from = best_from_camera.to_screen(global_knobs_position[axis_i])
+            screen_to = best_from_camera.to_screen(_to_global(local_knobs_position[axis_i] + scale_offset_vector))
+            drag_from = screen_from.copy()
+            # screen offset
+            offset_from = 10 # px
+            drag_from += (screen_to - screen_from).normalized() * offset_from
+
+
+            # find best_to_camera
+            best_to_camera = None
+            best_distance_sq = 0
+            for camera in self.cameras:
+                screen_knobs_position = [camera.to_screen(global_knobs_position[i]) for i in range(6)]
+                d = (screen_knobs_position[axis_i + 3] - screen_knobs_position[axis_i]).length_sq()
+                if d > best_distance_sq:
+                    best_distance_sq = d
+                    best_to_camera = camera
+            # drag to
+            screen_from = best_to_camera.to_screen(global_knobs_position[axis_i])
+            screen_to = best_to_camera.to_screen(_to_global(local_knobs_position[axis_i] + scale_offset_vector))
+            drag_to = screen_to.copy()
+            # screen offset
+            offset_to = 20  # px
+            drag_to += (screen_to - screen_from).normalized() * offset_to
+
+
+            # update current block position and scale
+            current_block_position = _to_global(_to_local(current_block_position) + scale_offset_vector/2)
+            current_block_scale[axis_i] += scale_amount
+
+            # scale the block
+            # change scale tool scale
+            if pag.pixel(37, 450) != (239, 239, 239):
+                click(37, 450)
+                time.sleep(0.5)
+            click(124, 453)
+            time.sleep(self.DEBOUNCE)
+            ahk.type(str(scale_amount))
+            time.sleep(self.DEBOUNCE)
+            ahk.key_press('enter')
+            time.sleep(self.DEBOUNCE)
+
+
+            # drag the knob
+            self.switch_camera(best_from_camera)
+            # ahk.mouse_move(*drag_from)
+            # keyboard.wait('-')
+            click(*drag_from, direction='Down')
+            time.sleep(self.DEBOUNCE)
+            self.switch_camera(best_to_camera)
+            # ahk.mouse_move(*drag_to)
+            # keyboard.wait('-')
+            click(*drag_to, direction='Up')
+            time.sleep(0.1)
+        #endregion
+
+        # scale back knobs
+        #region
+        for axis_i in range(3):
+            local_knobs_position = [Vector3.zero() for _ in range(6)]
+            for i in range(3):
+                # first 3 indices: back knobs
+                local_knobs_position[i][i] = -math.copysign(current_block_scale[i]/2+2, local_target_position[i])
+                # last 3 indices: front knobs (index i+3 are opposite knobs)
+                local_knobs_position[i+3][i] = math.copysign(current_block_scale[i]/2+2, local_target_position[i])
+            global_knobs_position = [_to_global(v) for v in local_knobs_position]
+            
+            # calc stuf
+            scale_amount = round(current_block_scale[axis_i] - scale[axis_i], 2)
+            scale_offset_vector = Vector3.zero()
+            scale_offset_vector[axis_i] = math.copysign(scale_amount, local_target_position[axis_i])
+
+
+            # find best_from_camera
+            best_from_camera = None
+            best_distance_sq = 0
+            for camera in self.cameras:
+                screen_knobs_position = [camera.to_screen(global_knobs_position[i]) for i in range(6)]
+                d = (screen_knobs_position[axis_i + 3] - screen_knobs_position[axis_i]).length_sq()
                 if d > best_distance_sq:
                     best_distance_sq = d
                     best_from_camera = camera
@@ -296,8 +382,8 @@ class Workspace:
 
 
             # update current block position and scale
-            current_block_position = _to_global(_to_local(current_block_position) + local_knobs_position[axis_i].normalized()*scale_amount/2)
-            current_block_scale[axis_i] += scale_amount
+            current_block_position = _to_global(_to_local(current_block_position) + scale_offset_vector/2)
+            current_block_scale[axis_i] -= scale_amount
 
             # scale the block
             # change scale tool scale
@@ -323,6 +409,8 @@ class Workspace:
             # keyboard.wait('-')
             click(*drag_to, direction='Up')
             time.sleep(0.1)
+        #endregion
+        
         #endregion
 
     # ---- actions submacro ----
@@ -404,6 +492,13 @@ class Workspace:
             pos = self.center + (pos - self.center).rotate(rot)
             camera = Camera(pos, rot, next(hotkey_seq))
             cameras.append(camera)
+        for i in range(4):
+            deg = i*30
+            rot = Rotation.from_euler('y', -deg, degrees=True)
+            pos = base_pos + Vector3(0, -42, -z_offsets[i])
+            pos = self.center + (pos - self.center).rotate(rot)
+            camera = Camera(pos, rot, next(hotkey_seq))
+            cameras.append(camera)
         return cameras
     
     def _hotkey_seq(self):
@@ -412,8 +507,8 @@ class Workspace:
     
 if __name__ == '__main__':
     workspace = Workspace()
-    for camera in workspace.cameras:
-        print(camera.pos)
+    # for camera in workspace.cameras:
+    #     print(camera.pos)
     # input('closed chat? press Enter to start.')
     print('press "-" to start')
     # workspace.build_block(Vector3(0, 0, 0), Rotation.from_euler('xyz', (123, 456, 789)), Vector3(1, 1, 1), color=None)
