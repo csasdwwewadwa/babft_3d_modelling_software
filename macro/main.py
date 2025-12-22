@@ -13,10 +13,10 @@ from scipy.spatial.transform import Rotation
 
 from typing import Optional, Literal
 
-from core import Vector3, Color
-import csamacro as cs
-from helper import *
-from config import SCREEN_RESOLUTION
+from .core import Vector3, Color, Cuboid
+from . import csamacro as cs
+from .helper import *
+from .config import SCREEN_RESOLUTION
 
 
 def click(x:int=None, y:int=None, direction:Optional[Literal['Down', 'Up']]=None):
@@ -136,7 +136,13 @@ class Workspace:
 
 
     # ---- the sauce ----
-    def build_block(self, position:Vector3, rotation:Rotation, scale: Vector3, color:Color=None):
+    def build_block(self, cuboid:Cuboid):
+        # unpack cuboid data
+        position = cuboid.position
+        rotation = cuboid.rotation
+        scale = cuboid.scale
+        color = cuboid.color
+
         # --- pick best block placement pos: highest min local target axis
         # region
         best = 0
@@ -517,7 +523,8 @@ if __name__ == '__main__':
         r = Rotation.random()
         # r = Rotation.from_euler('xyz', [ 1.19832808,  0.51462976, -0.84236655])
         print(r.as_euler('xyz'))
-        workspace.build_block(Vector3(0, 0, 0), r, Vector3(1, 1, 1), color=None)
+        cuboid = Cuboid(Vector3(0, 0, 0), r, Vector3(1, 1, 1), color=None)
+        workspace.build_block(cuboid)
 
     # a = [
     #     Vector3(-42, 0, -42),

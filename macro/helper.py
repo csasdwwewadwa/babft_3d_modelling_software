@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.spatial.transform import Rotation
-from core import *
+from .core import *
 
 def look_at(from_pos: Vector3, to_pos: Vector3, up=Vector3(0, 1, 0)) -> Rotation:
     """

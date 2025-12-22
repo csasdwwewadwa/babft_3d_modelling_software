@@ -363,3 +363,13 @@ class Color:
 
     def __setitem__(self, index, value):
         self._v[index] = value
+
+class Cuboid:
+    '''
+    Container for Cuboid data
+    '''
+    def __init__(self, position:Vector3, rotation:Rotation, scale:Vector3, color:Color):
+        self.position = position
+        self.rotation = rotation
+        self.scale = scale
+        self.color = color
