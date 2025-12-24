@@ -45,7 +45,6 @@ def mouse_move(x:int=None, y:int=None):
     cs.mouse_move_relative(1, 0)
 
 
-
 INF = float('inf')
 
 

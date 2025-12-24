@@ -38,6 +38,7 @@ class INPUT(ctypes.Structure):
 
 SendInput = ctypes.windll.user32.SendInput
 
+
 def mouse_move_relative(x, y, debounce=DEFAULT_DEBOUNCE_TIME):
     mi = MOUSEINPUT(dx=x, dy=y, mouseData=0, dwFlags=MOUSEEVENTF_MOVE, time=0, dwExtraInfo=None)
     inp = INPUT(type=INPUT_MOUSE, mi=mi)
