@@ -424,6 +424,60 @@ def fill_polygon(vertices:list[Vector2], min_length:float=0.05, offset:float=0.0
     done = False
     for _ in range(20):
         for i in range(n):
+            # attempt one-rectangle-covers-all
+            orca_resolution = 180
+            for orca_rot in range(orca_resolution):
+                orca_rot *= math.pi/2 / orca_resolution
+                orca_trans = Transform(Vector2.zero(), orca_rot)
+                orca_rotated_inner = [orca_trans.apply(v) for v in inner]
+                orca_rotated_outer = [orca_trans.apply(v) for v in outer]
+                
+                orca_min_x = min(v.x for v in orca_rotated_inner) - offset
+                orca_max_x = max(v.x for v in orca_rotated_inner) + offset
+                orca_min_y = min(v.y for v in orca_rotated_inner) - offset
+                orca_max_y = max(v.y for v in orca_rotated_inner) + offset
+
+                orca_rect_verts = [
+                    Vector2(orca_min_x - offset, orca_min_y - offset),
+                    Vector2(orca_max_x + offset, orca_min_y - offset),
+                    Vector2(orca_max_x + offset, orca_max_y + offset),
+                    Vector2(orca_min_x - offset, orca_max_y + offset)
+                ]
+
+                orca_found = True
+                for orca_i in range(4):
+                    orca_next_i = (orca_i + 1) % 4
+                    for orca_j in range(len(orca_rotated_outer)):
+                        orca_next_j = (orca_j + 1) % len(orca_rotated_outer)
+                        if intersect_segments(
+                            orca_rect_verts[orca_i], orca_rect_verts[orca_next_i],
+                            orca_rotated_outer[orca_j], orca_rotated_outer[orca_next_j]
+                        ):
+                            orca_found = False
+                            break
+                    if not orca_found:
+                        break
+                
+                if orca_found:
+                    print('orca')
+                    print(orca_rot)
+                    orca_rect_pos = Vector2((orca_min_x+orca_max_x)/2, (orca_min_y+orca_max_y)/2)
+                    orca_rect_pos = trans_cum.undo(orca_trans.undo(orca_rect_pos))
+                    orca_rect_rot = - orca_rot - trans_cum.rotation
+                    orca_rect_size = Vector2(orca_max_x-orca_min_x, orca_max_y-orca_min_y)
+                    rect_list.append({
+                        'pos': orca_rect_pos,
+                        'rot': orca_rect_rot,
+                        'size': orca_rect_size.copy()
+                    })
+                    # visualize_shapes([trans_cum.undo(orca_trans.undo(v)) for v in orca_rotated_outer], rect_list, 
+                    #                  [trans_cum.undo(orca_trans.undo(v)) for v in orca_rotated_inner])
+                    done = True
+                    break
+            if orca_found:
+                break
+
+            # add next edge
             next_i = (i+1) % n
             next_i2 = (i+2) % n
             prev_i = (i-1) % n
@@ -472,6 +526,20 @@ def fill_polygon(vertices:list[Vector2], min_length:float=0.05, offset:float=0.0
                     inner[i],
                     inner[prev_i]
                 )
+                # check_ray_hit = None
+                # for j in range(n):
+                #     yes = intersect_ray_to_segment(Vector2(inner[next_i].x, 99), Vector2(0, -1), inner[j], inner[(j+1)%n])
+                #     if yes:
+                #         check_ray_hit = yes
+                #         break
+                # print(check_ray_hit.y, rect_y_to)
+                # if check_ray_hit and check_ray_hit.y < rect_y_to and is_update_inner_next_i:
+                #     _inner_i = intersect_lines(
+                #         inner[next_i],
+                #         inner[next_i] + Vector2(0, rect_y_to),
+                #         inner[next_i],
+                #         inner[next_i2]
+                #     )
             # visualize_shapes(vertices, rect_list, [trans_cum.undo(v) for v in inner])
                 
             if is_update_inner_next_i:
@@ -481,19 +549,21 @@ def fill_polygon(vertices:list[Vector2], min_length:float=0.05, offset:float=0.0
                     inner[next_i],
                     inner[next_i2]
                 )
-                check_ray_hit = None
-                for j in range(n):
-                    yes = intersect_ray_to_segment(Vector2(_inner_next_i.x, 99), Vector2(0, -1), inner[j], inner[(j+1)%n])
-                    if yes:
-                        check_ray_hit = yes
-                        break
-                if check_ray_hit.y < rect_y_to:
-                    _inner_next_i = intersect_lines(
-                        inner[next_i],
-                        inner[next_i] + Vector2(0, rect_y_to),
-                        inner[next_i],
-                        inner[next_i2]
-                    )
+                # check_ray_hit = None
+                # for j in range(n):
+                #     yes = intersect_ray_to_segment(Vector2(inner[i].x, 99), Vector2(0, -1), inner[j], inner[(j+1)%n])
+                #     if yes:
+                #         check_ray_hit = yes
+                #         break
+                # print(check_ray_hit, rect_y_to)
+                # if check_ray_hit and check_ray_hit.y < rect_y_to and is_update_inner_i:
+                #     pass
+                #     _inner_next_i = intersect_lines(
+                #         inner[i],
+                #         inner[i] + Vector2(0, rect_y_to),
+                #         inner[i],
+                #         inner[prev_i]
+                #     )
                     
             if _inner_i:
                 inner[i] = _inner_i
