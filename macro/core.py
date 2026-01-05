@@ -144,7 +144,7 @@ class Vector3:
         return Vector3(self._v.copy())
 
     # ---- rotation (SciPy-native) ----
-    def rotate(self, rotation: Rotation):
+    def rotated(self, rotation: Rotation):
         """Applies a scipy Rotation object to this vector."""
         return Vector3(rotation.apply(self._v))
 
@@ -311,7 +311,7 @@ class Vector2:
         return Vector2(self._v.copy())
 
     # ---- rotation ----
-    def rotate(self, angle_rad: float) -> 'Vector2':
+    def rotated(self, angle_rad: float) -> 'Vector2':
         """
         Rotates the vector by angle_rad (in radians) counter-clockwise.
         Replaces the 3D scipy Rotation method.

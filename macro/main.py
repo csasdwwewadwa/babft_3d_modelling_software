@@ -105,7 +105,7 @@ class Camera:
         return screen_pos
 
     def _world_to_local(self, pos:Vector3) -> Vector3:
-        local_pos = (pos - self.pos).rotate(self.rot_inv) + self.offset
+        local_pos = (pos - self.pos).rotated(self.rot_inv) + self.offset
         return local_pos
     
 class Workspace:
@@ -146,7 +146,7 @@ class Workspace:
         # region
         best = 0
         for p in self.block_placement_poses:
-            local_target_position = (position - p).rotate(rotation.inv())
+            local_target_position = (position - p).rotated(rotation.inv())
             m = min(abs(v) for v in local_target_position)
             if m > best:
                 best = m
@@ -240,9 +240,9 @@ class Workspace:
         self.click_world(current_block_position)
         # compute knobs position
         def _to_local(pos:Vector3) -> Vector3:
-            return (pos - current_block_position).rotate(rotation.inv())
+            return (pos - current_block_position).rotated(rotation.inv())
         def _to_global(pos:Vector3) -> Vector3:
-            return pos.rotate(rotation) + current_block_position
+            return pos.rotated(rotation) + current_block_position
         local_target_position = _to_local(position)
         
 
@@ -480,28 +480,28 @@ class Workspace:
             deg = i*30
             rot = Rotation.from_euler('y', -deg, degrees=True)
             pos = base_pos + Vector3(0, 0, -z_offsets[i])
-            pos = self.center + (pos - self.center).rotate(rot)
+            pos = self.center + (pos - self.center).rotated(rot)
             camera = Camera(pos, rot, next(hotkey_seq))
             cameras.append(camera)
         for i in range(1, 4):
             deg = i*30
             rot = Rotation.from_euler('x', deg, degrees=True)
             pos = base_pos + Vector3(0, 0, -z_offsets[i])
-            pos = self.center + (pos - self.center).rotate(rot)
+            pos = self.center + (pos - self.center).rotated(rot)
             camera = Camera(pos, rot, next(hotkey_seq))
             cameras.append(camera)
         for i in range(1, 3):
             deg = i*30
             rot = Rotation.from_euler('xy', [deg, -90], degrees=True)
             pos = base_pos + Vector3(0, 0, -z_offsets[i])
-            pos = self.center + (pos - self.center).rotate(rot)
+            pos = self.center + (pos - self.center).rotated(rot)
             camera = Camera(pos, rot, next(hotkey_seq))
             cameras.append(camera)
         for i in range(4):
             deg = i*30
             rot = Rotation.from_euler('y', -deg, degrees=True)
             pos = base_pos + Vector3(0, -42, -z_offsets[i])
-            pos = self.center + (pos - self.center).rotate(rot)
+            pos = self.center + (pos - self.center).rotated(rot)
             camera = Camera(pos, rot, next(hotkey_seq))
             cameras.append(camera)
         return cameras
