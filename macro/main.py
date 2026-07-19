@@ -90,7 +90,9 @@ class Camera:
 
         self.offset_z = 126/41   #  ~3.07    |  111 - (100/(1-5.2/70.8))
         self.offset = Vector3(0, 0, -self.offset_z)
-        self.screen_z = 31625/41 #  ~771.34  |  506/70.8 * (100/(1-5.2/70.8))
+        # self.screen_z = 31625/41 #  ~771.34  |  506/70.8 * (100/(1-5.2/70.8))
+        self.fov = 70 
+        self.screen_z = 1080/2 / math.tan(math.radians(self.fov/2)) # 771.1999236407419
 
     def to_screen(self, position:Vector3) -> Vector2:
         local_pos = self._world_to_local(position)
@@ -133,6 +135,30 @@ class Workspace:
             ]
         self.camera_top_down:Camera = next((cam for cam in self.cameras if cam.pos == Vector3(30, 194, 0)))
 
+    def init(self):
+        # --- init build tool
+        self.switch_tool('Build')
+        # select block plastic
+        if pag.pixel(172, 257) != (239, 239, 239):
+            click(172, 257)
+            time.sleep(0.2)
+            ahk.key_down('ctrl')
+            time.sleep(self.DEBOUNCE)
+            ahk.key_press('a')
+            time.sleep(self.DEBOUNCE)
+            ahk.key_up('ctrl')
+            time.sleep(self.DEBOUNCE)
+            ahk.type('plastic')
+            time.sleep(self.DEBOUNCE)
+            ahk.key_press('enter')
+            time.sleep(0.2)
+            click(50, 369)
+        # open advanced panel
+        if pag.pixel(518, 268) != (239, 239, 239):
+            click(518, 268)
+            time.sleep(0.5)
+        # change build tool "move" property
+        # click()
 
     # ---- the sauce ----
     def build_block(self, cuboid:Cuboid):
@@ -168,26 +194,7 @@ class Workspace:
 
         # --- rotate and place block at block placement pos
         #region
-        # select block plastic
         self.switch_tool('Build')
-        if pag.pixel(172, 257) != (239, 239, 239):
-            click(172, 257)
-            time.sleep(0.2)
-            ahk.key_down('ctrl')
-            time.sleep(self.DEBOUNCE)
-            ahk.key_press('a')
-            time.sleep(self.DEBOUNCE)
-            ahk.key_up('ctrl')
-            time.sleep(self.DEBOUNCE)
-            ahk.type('plastic')
-            time.sleep(self.DEBOUNCE)
-            ahk.key_press('enter')
-            time.sleep(0.2)
-            click(50, 369)
-        # open advanced panel
-        if pag.pixel(518, 268) != (239, 239, 239):
-            click(518, 268)
-            time.sleep(0.5)
         rot_cmd_seq = rotation_to_rotate_commands(rotation)
         for k, v in rot_cmd_seq:
             if v >= 90:
@@ -440,15 +447,17 @@ class Workspace:
         return screen_coord
 
     def switch_camera(self, camera:Camera):
+        if self.current_camera and self.current_camera.hotkey == camera.hotkey:
+            return
+
+        time.sleep(0.6)
+        
         if self.current_camera is None:
             ahk.key_press('f') # change to portal cam
-            time.sleep(self.DEBOUNCE)
-        if self.current_camera and self.current_camera.hotkey == camera.hotkey:
-            ahk.key_press('f') # change to portal cam
-            time.sleep(self.DEBOUNCE)
+            time.sleep(0.6)
         
-        self.current_camera = camera
         ahk.key_press(camera.hotkey)
+        self.current_camera = camera
         time.sleep(self.DEBOUNCE)
     
     def switch_tool(self, tool:Literal['Delete', 'Build', 'Color', 'Bind', 'Scale', 'Screwdriver', 'Trowel']):

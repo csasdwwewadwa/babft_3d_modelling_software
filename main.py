@@ -22,6 +22,11 @@ def load_cuboids(file_path:str):
 
 workspace = Workspace() 
 cuboids = load_cuboids(r'scene.json')
+
+print('press "-" to init')
+keyboard.wait('-')
+workspace.init()
+
 for cuboid in cuboids:
     print('press "-" to continue')
     keyboard.wait('-')

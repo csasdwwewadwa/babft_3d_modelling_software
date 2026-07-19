@@ -294,6 +294,7 @@ class Engine:
         
         self.accumulated_mouse[0] += dx
         self.accumulated_mouse[1] += dy
+
         total_dx, total_dy = self.accumulated_mouse
         
         snapping = (pygame.key.get_mods() & KMOD_CTRL)
