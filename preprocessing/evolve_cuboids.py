@@ -187,7 +187,9 @@ class UnifiedNativeRenderer:
         img_source = None
         if hasattr(geo, 'visual') and hasattr(geo.visual, 'material'):
             mat = geo.visual.material
-            if hasattr(mat, 'image') and mat.image is not None:
+            if path == 'fern.glb':
+                img_source = mat.emissiveTexture
+            elif hasattr(mat, 'image') and mat.image is not None:
                 img_source = mat.image
             elif hasattr(mat, 'baseColorTexture') and mat.baseColorTexture is not None:
                 img_source = mat.baseColorTexture
@@ -330,7 +332,7 @@ def save_dashboard_to_png(ref_color, current_color, filepath="evolution_dashboar
     cv2.imwrite(filepath, dashboard)
 
 # --- RUN LOOP ENGINE ---
-def run_evolution(glb_path="cirno.glb", cuboids_path="cuboids_data.npy", generations=2048):
+def run_evolution(glb_path="cirno.glb", cuboids_path="cuboids_data.npy", generations=99999999):
     renderer = UnifiedNativeRenderer(res=(1024, 1024))
     
     print(f"Uploading True GLB geometry buffers: {glb_path}...")
@@ -355,14 +357,17 @@ def run_evolution(glb_path="cirno.glb", cuboids_path="cuboids_data.npy", generat
         num_mutations = 1
         for idx in np.random.choice(len(cuboids), size=num_mutations, replace=False):
             c = mutated_cuboids[idx]
-            mod_type = np.random.choice(['pos', 'scale', 'rot'])
-            if mod_type == 'pos': c['center'] += np.random.normal(0, 0.05, size=3)
+            mod_type = np.random.choice(['pos', 'scale', 'rot', 'color'])
+            # mod_type = np.random.choice(['color'])
+            if mod_type == 'pos': c['center'] += np.random.normal(0, 0.005, size=3)
             elif mod_type == 'scale': c['extents'] = np.clip(c['extents'] * np.random.normal(1.0, 0.03, size=3), 0.001, None)
             elif mod_type == 'rot':
                 angle = np.random.normal(0, 0.03)
                 axis = np.random.normal(0, 1.0, size=3); axis /= np.linalg.norm(axis)
                 K = np.array([[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
                 c['rotation'] = np.dot(np.eye(3) + np.sin(angle)*K + (1-np.cos(angle))*np.dot(K, K), c['rotation'])
+            elif mod_type == 'color':
+                c['color'] = np.clip(c['color'] + np.random.normal(0, 0.05, size=3), 0.0, 1.0)
         
         cand_count = renderer.upload_cuboids(mutated_cuboids)
         cand_color, cand_masks = capture_matrix(renderer, num_angles=24, instanced_mode=True, count=cand_count)

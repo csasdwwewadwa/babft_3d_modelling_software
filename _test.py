@@ -1,8 +1,9 @@
 import trimesh
 import os
 
-def trace_scene_materials(file_path="paimon.glb"):
+def trace_scene_materials(file_path="fern.glb"):
     scene = trimesh.load(file_path)
+
     if not isinstance(scene, trimesh.Scene):
         print("Asset is a single mesh.")
         return
@@ -28,7 +29,7 @@ def trace_scene_materials(file_path="paimon.glb"):
         # Track where the image payload is hiding
         img = None
         source_attr = None
-        for attr in ['baseColorTexture', 'image', 'main_texture']:
+        for attr in ['baseColorTexture', 'emissiveTexture', 'image', 'main_texture']:
             if hasattr(mat, attr) and getattr(mat, attr) is not None:
                 img = getattr(mat, attr)
                 source_attr = attr

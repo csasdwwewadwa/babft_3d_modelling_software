@@ -10,10 +10,13 @@ def get_pixel_color_from_uv(mesh, face_indices, pts):
     # SURGICAL FIX: Force deep reference tracking of this specific mesh's isolated material profile
     material = mesh.visual.material
     img = None
+    # for attr in ['baseColorTexture', 'emissiveTexture', 'image', 'main_texture']:
     if hasattr(material, 'baseColorTexture') and material.baseColorTexture is not None:
         img = material.baseColorTexture
     elif hasattr(material, 'image') and material.image is not None:
         img = material.image
+    elif hasattr(material, 'emissiveTexture') and material.emissiveTexture is not None:
+        img = material.emissiveTexture
         
     if img is None:
         return None
@@ -128,7 +131,7 @@ def build_accurate_flow_cuboids(points, normals, colors):
         norm_dots = np.abs(np.dot(normals[valid], seed_normal))
         color_diffs = np.linalg.norm(colors[valid] - seed_color, axis=1)
         
-        cluster_mask = (norm_dots >= 0.97) & (color_diffs <= 0.06)
+        cluster_mask = (norm_dots >= 0.9) & (color_diffs <= 0.06)
         final_cluster = valid[cluster_mask]
         
         if len(final_cluster) < 3:
@@ -166,8 +169,11 @@ def build_accurate_flow_cuboids(points, normals, colors):
         max_b = np.max(local_pts, axis=0)
         extents = (max_b - min_b)
         
-        extents[2] = max(extents[2], mesh_scale * 0.002)
+        # extents[2] = max(extents[2], mesh_scale * 0.002)
         extents[:2] *= 1.04
+
+        # min size: 0.1
+        extents = np.maximum(extents, 0.1)
         
         cuboids.append({
             'center': center.astype(np.float32),
@@ -177,11 +183,14 @@ def build_accurate_flow_cuboids(points, normals, colors):
         })
         
         visited[final_cluster] = True
+
+    # remove small cuboids
+    cuboids = [c for c in cuboids if not np.all(c['extents'] <= 0.15)]
         
     return cuboids
 
 if __name__ == "__main__":
-    scene = trimesh.load("fern.glb")
+    scene = trimesh.load("glb/cirno.glb")
     pts, norms, cols = extract_global_scene_data(scene, target_total_points=500000)
     optimized_cuboids = build_accurate_flow_cuboids(pts, norms, cols)
     
