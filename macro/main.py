@@ -7,9 +7,11 @@ import time
 import math
 import keyboard
 import random
+from tqdm import tqdm
 
 import numpy as np
 from scipy.spatial.transform import Rotation
+import pyperclip
 
 from typing import Optional, Literal
 
@@ -20,10 +22,6 @@ from .config import SCREEN_RESOLUTION
 
 
 def click(x:int=None, y:int=None, direction:Optional[Literal['Down', 'Up']]=None):
-    # avoid clicking ui
-    if y >= 1010: # toolbar
-        if 731 <= x <= 1188:
-            y = 1077
     cs.mouse_move_absolute(x-2, y)
     cs.mouse_move_relative(1, 0)
     cs.mouse_move_relative(1, 0)
@@ -36,13 +34,23 @@ def click(x:int=None, y:int=None, direction:Optional[Literal['Down', 'Up']]=None
         cs.mouse_button_up()
 
 def mouse_move(x:int=None, y:int=None):
-    # avoid clicking ui
-    if y >= 1010: # toolbar
-        if 731 <= x <= 1188:
-            y = 1077
     cs.mouse_move_absolute(x-2, y)
     cs.mouse_move_relative(1, 0)
     cs.mouse_move_relative(1, 0)
+
+def type_keyboard(text:str):
+    pyperclip.copy(text)
+    ahk.key_down('ctrl')
+    time.sleep(0.05)
+    ahk.key_press('a')
+    time.sleep(0.05)
+    ahk.key_press('v')
+    time.sleep(0.05)
+    ahk.key_up('ctrl')
+    time.sleep(0.05)
+    ahk.key_press('enter')
+    time.sleep(0.05)
+    
 
 
 INF = float('inf')
@@ -152,7 +160,7 @@ class Workspace:
             time.sleep(self.DEBOUNCE)
             ahk.key_up('ctrl')
             time.sleep(self.DEBOUNCE)
-            ahk.type('plastic')
+            type_keyboard('plastic')
             time.sleep(self.DEBOUNCE)
             ahk.key_press('enter')
             time.sleep(0.2)
@@ -164,7 +172,7 @@ class Workspace:
         # change build tool "move" property
         click(493, 555)
         time.sleep(self.DEBOUNCE)
-        ahk.type('2')
+        type_keyboard('2')
         time.sleep(self.DEBOUNCE)
         ahk.key_press('enter')
 
@@ -189,15 +197,19 @@ class Workspace:
 
         # --- delete block at block placement pos if there is
         #region
+        self.switch_tool('Screwdriver')
         self.switch_camera(self.camera_top_down)
+        mouse_move(1919, 1079) # to screen corner
         for _ in range(3):
+            time.sleep(0.2)
             if pag.pixel(*(map(round, self.to_screen(block_placement_pos + Vector3(0, 1, 0))))) == (4, 4, 4):
                 break
             self.switch_tool('Delete')
+            time.sleep(self.DEBOUNCE)
             self.mouse_move_world(block_placement_pos + Vector3(0, 1, 0))
             time.sleep(self.DEBOUNCE)
             self.click_world(block_placement_pos + Vector3(0, 1, 0))
-            print('WARNING: Exists remnant block in block_placement_pos')
+            tqdm.write('WARNING: Exists remnant block in block_placement_pos')
             time.sleep(3)
         else:
             raise Exception('Uhh failed to delete whatever is in the way of block_placement_pos')
@@ -209,7 +221,7 @@ class Workspace:
         rot_cmd_seq = rotation_to_rotate_commands(rotation)
         for k, v in rot_cmd_seq:
             if v >= 90:
-                self._set_build_tool_rotate_value(v)
+                self._set_build_tool_rotate_value(90)
                 while v >= 90:
                     v -= 90
                     ahk.key_press(k)
@@ -223,37 +235,38 @@ class Workspace:
         #endregion
 
         # confirm the block is placed server-side
-        self.switch_tool('Trowel')
+        #region
         for _ in range(180):
-            time.sleep(0.1)
+            self.switch_tool('Trowel') # this also re-equip the tool.
+            time.sleep(self.DEBOUNCE)
             self.click_world(block_placement_pos)
             time.sleep(0.1)
 
             # confirmed: plastic block is selected with trowel -> placed server-side
             if pag.pixel(68, 500) == (173, 96, 164):
                 break
+        #endregion
 
         # --- color block if set
         #region
         self.switch_camera(self.camera_top_down)
         if color is not None:
             self.switch_tool('Color')
+            # open the advanced panel
             if pag.pixel(234, 461) != (97, 97, 97):
                 click(336, 794)
                 time.sleep(0.5)
-            for i, v in enumerate(color):
-                click(46, 676 + 61*i)
-                time.sleep(0.2)
-                ahk.key_down('ctrl')
-                time.sleep(self.DEBOUNCE)
-                ahk.key_press('a')
-                time.sleep(self.DEBOUNCE)
-                ahk.key_up('ctrl')
-                time.sleep(self.DEBOUNCE)
-                ahk.type(str(v))
-                time.sleep(self.DEBOUNCE)
-                ahk.key_press('enter')
-                time.sleep(self.DEBOUNCE)
+            # set the color
+            time.sleep(self.DEBOUNCE)
+            for i in range(3):
+                if color[i] < 10 or color[i] > 245:
+                    click(151, 677+61*i, 'Down')
+                    time.sleep(self.DEBOUNCE)
+                    click(71+162*color[i]/255.0, 677+61*i, 'Up')
+                else:
+                    click(71+162*color[i]/255.0, 677+61*i)
+            time.sleep(self.DEBOUNCE)
+            # paint the block
             self.click_world(block_placement_pos + Vector3(0, 1, 0))
         #endregion
 
@@ -295,7 +308,7 @@ class Workspace:
                 global_knobs_position = [_to_global(v) for v in local_knobs_position]
                 
                 # calc stuf
-                scale_amount = round(abs(local_target_position[axis_i]) - current_block_scale[axis_i]/2 + scale[axis_i]/2, 2)
+                scale_amount = round(abs(local_target_position[axis_i]) - current_block_scale[axis_i]/2 + scale[axis_i]/2, 3)
                 scale_offset_vector = Vector3.zero()
                 scale_offset_vector[axis_i] = math.copysign(scale_amount, local_target_position[axis_i])
 
@@ -323,7 +336,7 @@ class Workspace:
                 screen_from = best_from_camera.to_screen(global_knobs_position[axis_i])
                 screen_to = best_from_camera.to_screen(_to_global(local_knobs_position[axis_i] + scale_offset_vector))
                 drag_from = screen_from.copy()
-                knob_from = drag_from.copy()
+                knob_from = screen_from.copy()
 
                 # screen offset
                 offset_from = 6 # px
@@ -359,7 +372,7 @@ class Workspace:
                     time.sleep(0.5)
                 click(124, 453)
                 time.sleep(self.DEBOUNCE)
-                ahk.type(str(scale_amount))
+                type_keyboard(f'{scale_amount:.3f}')
                 time.sleep(self.DEBOUNCE)
                 ahk.key_press('enter')
                 time.sleep(self.DEBOUNCE)
@@ -369,10 +382,11 @@ class Workspace:
                 self.switch_camera(best_from_camera)
                 # ahk.mouse_move(*drag_from)
                 # keyboard.wait('-')
+                mouse_move(*drag_from)
                 click(*drag_from, direction='Down')
-                click(*drag_from, direction='Down')
-                # print(pag.pixel(*map(int, knob_from)))
                 time.sleep(self.DEBOUNCE)
+                if pag.pixel(*map(int, knob_from)) != (172, 78, 1):
+                    raise Exception('in-game scaling knob\'s location is wrong')
                 self.switch_camera(best_to_camera)
                 # ahk.mouse_move(*drag_to)
                 # keyboard.wait('-')
@@ -400,7 +414,7 @@ class Workspace:
                 global_knobs_position = [_to_global(v) for v in local_knobs_position]
                 
                 # calc stuf
-                scale_amount = round(current_block_scale[axis_i] - scale[axis_i], 2)
+                scale_amount = int((current_block_scale[axis_i] - scale[axis_i]) * 10**3) / 10**3
                 scale_offset_vector = Vector3.zero()
                 scale_offset_vector[axis_i] = math.copysign(scale_amount, local_target_position[axis_i])
 
@@ -424,7 +438,7 @@ class Workspace:
                 screen_from = best_from_camera.to_screen(global_knobs_position[axis_i])
                 screen_to = best_from_camera.to_screen(_to_global(local_knobs_position[axis_i] + scale_offset_vector))
                 drag_from = screen_from.copy()
-                knob_from = drag_from.copy()
+                knob_from = screen_from.copy()
                 
                 # screen offset
                 offset_from = 0 # px
@@ -445,7 +459,7 @@ class Workspace:
                 screen_to = best_to_camera.to_screen(_to_global(local_knobs_position[axis_i] + scale_offset_vector))
                 drag_to = screen_to.copy()
                 # screen offset
-                offset_to = 20  # px
+                offset_to = -20  # px
                 drag_to += (screen_to - screen_from).normalized() * offset_to
 
 
@@ -460,7 +474,7 @@ class Workspace:
                     time.sleep(0.5)
                 click(124, 453)
                 time.sleep(self.DEBOUNCE)
-                ahk.type(str(scale_amount))
+                type_keyboard(f'{scale_amount:.3f}')
                 time.sleep(self.DEBOUNCE)
                 ahk.key_press('enter')
                 time.sleep(self.DEBOUNCE)
@@ -470,10 +484,11 @@ class Workspace:
                 self.switch_camera(best_from_camera)
                 # ahk.mouse_move(*drag_from)
                 # keyboard.wait('-')
+                mouse_move(*drag_from)
                 click(*drag_from, direction='Down')
-                click(*drag_from, direction='Down')
-                print(pag.pixel(*map(int, knob_from)))
                 time.sleep(self.DEBOUNCE)
+                if pag.pixel(*map(int, knob_from)) != (172, 78, 1):
+                    raise Exception('in-game scaling knob\'s location is wrong')
                 self.switch_camera(best_to_camera)
                 # ahk.mouse_move(*drag_to)
                 # keyboard.wait('-')
@@ -522,8 +537,8 @@ class Workspace:
         self.last_camera_time = time.time()
         time.sleep(self.DEBOUNCE)
     
-    def switch_tool(self, tool:Literal['Delete', 'Build', 'Color', 'Bind', 'Scale', 'Screwdriver', 'Trowel']):
-        tool_idx = ['Delete', 'Build', 'Color', 'Bind', 'Scale', 'Screwdriver', 'Trowel'].index(tool)
+    def switch_tool(self, tool:Literal['Delete', 'Build', 'Color', 'Wrench', 'Scale', 'Screwdriver', 'Trowel']):
+        tool_idx = ['Delete', 'Build', 'Color', 'Wrench', 'Scale', 'Screwdriver', 'Trowel'].index(tool)
         is_equipped = pag.pixel(738+65*tool_idx, 1071) == (90, 142, 233)
         # unequip if is currently equipped (this also resets the rotation on the build tool)
         if is_equipped:
@@ -537,7 +552,7 @@ class Workspace:
         value = f'{value:.2f}'
         click(493, 621)
         time.sleep(self.DEBOUNCE)
-        ahk.type(value)
+        type_keyboard(value)
         time.sleep(self.DEBOUNCE)
         ahk.key_press('enter')
 
@@ -584,6 +599,33 @@ class Workspace:
         for k in 'qeyupghjklzxcvbnm':
             yield k
     
+    def save(self, name):
+        click(1806, 458)
+        time.sleep(3)
+        click(897, 205)
+        time.sleep(3)
+        click(899, 727)
+        time.sleep(1)
+        click(1457, 353)
+        time.sleep(1)
+        ahk.key_down('ctrl')
+        time.sleep(self.DEBOUNCE)
+        ahk.key_press('a')
+        time.sleep(self.DEBOUNCE)
+        ahk.key_up('ctrl')
+        time.sleep(self.DEBOUNCE)
+        type_keyboard(name)
+        time.sleep(self.DEBOUNCE)
+        ahk.key_press('enter')
+        time.sleep(1)
+        click(1519, 759)
+        time.sleep(1)
+        click(777, 800)
+        time.sleep(1)
+        click(1568, 200)
+        time.sleep(5)
+
+
 if __name__ == '__main__':
     workspace = Workspace()
     # for camera in workspace.cameras:
