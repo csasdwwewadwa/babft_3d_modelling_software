@@ -165,4 +165,4 @@ for i in tqdm(range(progress+1, len(cuboids)), initial=progress+1, total=len(cub
 
     if i%100 == 0:
         workspace.save(f'cirno {i}')
-        report_screenshot(f'saved: {i}')
+        report_screenshot(f'saved: {i} / {len(cuboids)-1}')
