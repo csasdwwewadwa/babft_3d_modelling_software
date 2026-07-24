@@ -133,6 +133,7 @@ def save_faulty_block_id(id:int, reason:str):
     with open('faulty_block_id.txt', 'a') as f:
         f.write(f'{id} - {reason}\n')
 
+faulty_block_amt = 0
 
 for i in tqdm(range(progress+1, len(cuboids)), initial=progress+1, total=len(cuboids)):
     
@@ -150,14 +151,15 @@ for i in tqdm(range(progress+1, len(cuboids)), initial=progress+1, total=len(cub
         workspace.build_block(cuboid)
     except Exception as e:
         error_message = str(e)
-        report_message(f'{error_message}')
+        # report_message(f'{error_message}')
         match error_message:
             case msg if 'in-game scaling knob\'s location is wrong' in msg:
                 tqdm.write(f'[{i}::WARN] - {msg}')
                 save_faulty_block_id(i, msg)
+                faulty_block_amt += 1
                 continue
-            case _:
-                report_screenshot(f'CRITICAL ERROR, EXECUTION TERMINATED! {DISCORD_PING_CSA}')
+            case msg:
+                report_screenshot(f'[i.{i}] CRITICAL ERROR, EXECUTION TERMINATED! reason: {msg} {DISCORD_PING_CSA}')
                 raise
 
     with open('progress.txt', 'w') as f:
@@ -165,4 +167,5 @@ for i in tqdm(range(progress+1, len(cuboids)), initial=progress+1, total=len(cub
 
     if i%100 == 0:
         workspace.save(f'cirno {i}')
-        report_screenshot(f'saved: {i} / {len(cuboids)-1}')
+        report_screenshot(f'saved: {i} / {len(cuboids)-1}. faulty blocks: {faulty_block_amt}')
+        faulty_block_amt = 0

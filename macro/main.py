@@ -22,9 +22,9 @@ from .config import SCREEN_RESOLUTION
 
 
 def click(x:int=None, y:int=None, direction:Optional[Literal['Down', 'Up']]=None):
-    cs.mouse_move_absolute(x-2, y)
-    cs.mouse_move_relative(1, 0)
-    cs.mouse_move_relative(1, 0)
+    cs.mouse_move_absolute(x, y)
+    cs.mouse_move_absolute(x-1, y)
+    cs.mouse_move_absolute(x, y)
     if direction is None:
         cs.mouse_button_down()
         cs.mouse_button_up()
@@ -34,9 +34,9 @@ def click(x:int=None, y:int=None, direction:Optional[Literal['Down', 'Up']]=None
         cs.mouse_button_up()
 
 def mouse_move(x:int=None, y:int=None):
-    cs.mouse_move_absolute(x-2, y)
-    cs.mouse_move_relative(1, 0)
-    cs.mouse_move_relative(1, 0)
+    cs.mouse_move_absolute(x, y)
+    cs.mouse_move_absolute(x-1, y)
+    cs.mouse_move_absolute(x, y)
 
 def type_keyboard(text:str):
     pyperclip.copy(text)
@@ -202,14 +202,42 @@ class Workspace:
         mouse_move(1919, 1079) # to screen corner
         for _ in range(3):
             time.sleep(0.2)
-            if pag.pixel(*(map(round, self.to_screen(block_placement_pos + Vector3(0, 1, 0))))) == (4, 4, 4):
+            block_placement_coords = self.to_screen(block_placement_pos + Vector3(0, 1, 0))
+            # nothing at block placement pos
+            if pag.pixel(*map(round, block_placement_coords)) == (4, 4, 4):
                 break
+
+            tqdm.write('WARNING: Exists remnant block in block_placement_pos')
+            # try to see if block is selectable
+            self.switch_tool('Trowel')
+            time.sleep(self.DEBOUNCE)
+            click(*map(round, block_placement_coords))
+            time.sleep(self.DEBOUNCE)
+            # plastic block is selected -> selectable
+            if pag.pixel(68, 500) == (173, 96, 164):
+                block_deletion_coords = block_placement_coords
+            # selected block isnt plastic -> not selectable
+            else:
+                found = False
+                for y in (-6, -3, 0, 3, 6):
+                    for x in (-6, -3, 0, 3, 6):
+                        if x==0 and y==0:
+                            continue
+                        self.switch_tool('Trowel') # reselect tool
+                        time.sleep(self.DEBOUNCE)
+                        block_deletion_coords = block_placement_coords + Vector2(x, y)
+                        click(*map(round, block_deletion_coords))
+                        time.sleep(self.DEBOUNCE)
+                        # plastic block is selected! this is THE selectable coords
+                        if pag.pixel(68, 500) == (173, 96, 164):
+                            found = True
+                            break
+                    if found: break
+                else:
+                    raise Exception('tried but couldnt select block_deletion_coords')
             self.switch_tool('Delete')
             time.sleep(self.DEBOUNCE)
-            self.mouse_move_world(block_placement_pos + Vector3(0, 1, 0))
-            time.sleep(self.DEBOUNCE)
-            self.click_world(block_placement_pos + Vector3(0, 1, 0))
-            tqdm.write('WARNING: Exists remnant block in block_placement_pos')
+            click(*map(round, block_deletion_coords))
             time.sleep(3)
         else:
             raise Exception('Uhh failed to delete whatever is in the way of block_placement_pos')
